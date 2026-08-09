@@ -1,6 +1,9 @@
 from enum import Enum
 from typing import Optional
 
+from loguru import logger
+
+from tau2.config import DISABLE_LLM_JUDGES
 from tau2.data_model.simulation import RewardInfo, SimulationRun, TerminationReason
 from tau2.data_model.tasks import RewardType, Task
 from tau2.environment.toolkit import ToolType, get_tool_types
@@ -178,6 +181,14 @@ def evaluate_simulation(
             strict_replay=strict_replay,
         )
     elif evaluation_type == EvaluationType.NL_ASSERTIONS:
+        if DISABLE_LLM_JUDGES:
+            # FORK: this evaluation type is *only* LLM judging, so there is
+            # nothing meaningful to return. Fail loudly rather than silently
+            # scoring 1.0.
+            raise RuntimeError(
+                "EvaluationType.NL_ASSERTIONS requires LLM judging, which is "
+                "disabled in this fork. Set TAU2_DISABLE_LLM_JUDGES=0 to enable."
+            )
         reward_info = NLEvaluator.calculate_reward(
             task=task,
             full_trajectory=trajectory,
@@ -213,7 +224,22 @@ def evaluate_simulation(
         )
         nl_reward_info = None
         task_needs_nl = RewardType.NL_ASSERTION in task.evaluation_criteria.reward_basis
-        if evaluation_type == EvaluationType.ALL_WITH_NL_ASSERTIONS or task_needs_nl:
+        want_nl = (
+            evaluation_type == EvaluationType.ALL_WITH_NL_ASSERTIONS or task_needs_nl
+        )
+        if want_nl and DISABLE_LLM_JUDGES:
+            # FORK: NL assertions are LLM-judged, and this fork disables LLM
+            # judging. Do NOT fall through to an empty check list: `all([])` is
+            # True, which would hand the task a free NL_ASSERTION reward of 1.0.
+            # Drop the component from the basis instead, so the reward reflects
+            # only what actually ran.
+            logger.warning(
+                f"TAU2_DISABLE_LLM_JUDGES: skipping NL_ASSERTION for task "
+                f"{task.id!r}. Reward EXCLUDES this component and is therefore "
+                f"not comparable with upstream tau2 scores for this task."
+            )
+            want_nl = False
+        if want_nl:
             nl_reward_info = NLEvaluator.calculate_reward(
                 task=task,
                 full_trajectory=trajectory,
@@ -230,6 +256,10 @@ def evaluate_simulation(
         evaluated_bases = env_bases | action_bases | comm_bases
         if nl_reward_info is not None:
             evaluated_bases |= nl_bases
+        if DISABLE_LLM_JUDGES:
+            # FORK: intentionally not evaluated, so exclude it from the basis
+            # rather than tripping the "declared but not evaluated" guard below.
+            task_reward_basis = task_reward_basis - nl_bases
         unevaluated = task_reward_basis - evaluated_bases
         if unevaluated:
             raise ValueError(
@@ -294,7 +324,10 @@ def evaluate_simulation(
             full_trajectory=trajectory,
         )
         nl_reward_info = None
-        if evaluation_type == EvaluationType.ALL_WITH_NL_ASSERTIONS_IGNORE_BASIS:
+        if (
+            evaluation_type == EvaluationType.ALL_WITH_NL_ASSERTIONS_IGNORE_BASIS
+            and not DISABLE_LLM_JUDGES  # FORK: see DISABLE_LLM_JUDGES in config
+        ):
             nl_reward_info = NLEvaluator.calculate_reward(
                 task=task,
                 full_trajectory=trajectory,

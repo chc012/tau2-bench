@@ -7,6 +7,7 @@ from tau2.config import (
     DEFAULT_LLM_ARGS_AGENT,
     DEFAULT_LLM_ARGS_USER,
     DEFAULT_LLM_USER,
+    DISABLE_LLM_JUDGES,
 )
 from tau2.data_model.simulation import RunConfig, TextRunConfig
 from tau2.data_model.tasks import EnvAssertion, RewardType, Task, make_task
@@ -271,6 +272,10 @@ def test_run_tasks_history_and_env_assertions(
     assert simulation is not None
 
 
+@pytest.mark.skipif(
+    DISABLE_LLM_JUDGES,
+    reason="NL assertions are LLM-judged; disabled via TAU2_DISABLE_LLM_JUDGES",
+)
 def test_run_tasks_nl_assertions(domain_name: str):
     """Test running a task with the mock domain"""
     task = get_tasks(domain_name, task_ids=["create_task_1_nl_eval"])[0]

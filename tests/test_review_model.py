@@ -1,7 +1,16 @@
 from types import SimpleNamespace
 
+import pytest
+
+from tau2.config import DISABLE_LLM_JUDGES
 from tau2.evaluator import reviewer
 from tau2.runner import batch
+
+# This fork disables LLM judging by default; these tests exercise the reviewer,
+# which now refuses to run. Set TAU2_DISABLE_LLM_JUDGES=0 to exercise them.
+pytestmark = pytest.mark.skipif(
+    DISABLE_LLM_JUDGES, reason="LLM judges disabled (TAU2_DISABLE_LLM_JUDGES)"
+)
 
 
 def test_review_simulation_uses_custom_model_for_full_turn_based(monkeypatch):

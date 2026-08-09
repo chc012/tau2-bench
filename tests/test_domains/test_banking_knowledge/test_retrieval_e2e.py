@@ -128,6 +128,14 @@ _ALL_VARIANTS = [
         {"KB_search_bm25", "KB_search_dense", "shell"},
         "all_tools",
     ),
+    (
+        # Registered in RETRIEVAL_VARIANTS but missing from this table upstream,
+        # which made test_all_variants_table_matches_registry fail. Same tools as
+        # `alltools`; dense search is routed through OpenRouter instead of OpenAI.
+        "alltools-qwen",
+        {"KB_search_bm25", "KB_search_dense", "shell"},
+        "all_tools",
+    ),
 ]
 
 
