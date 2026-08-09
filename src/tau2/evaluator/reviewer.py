@@ -35,7 +35,7 @@ Usage:
 from enum import Enum
 from typing import Optional, Union
 
-from tau2.config import DEFAULT_LLM_EVAL_USER_SIMULATOR
+from tau2.config import DEFAULT_LLM_EVAL_USER_SIMULATOR, DISABLE_LLM_JUDGES
 from tau2.data_model.simulation import (
     AuthenticationClassification,
     HallucinationCheck,
@@ -98,6 +98,16 @@ def review_simulation(
         - For FULL mode: (Review, AuthenticationClassification)
         - For USER mode: (UserOnlyReview, None)
     """
+    if DISABLE_LLM_JUDGES:
+        # FORK: conversation review, auth classification and hallucination
+        # checking are all LLM-judged. Refuse rather than return an empty review
+        # that a caller could mistake for "no errors found".
+        raise RuntimeError(
+            "review_simulation() requires LLM judging, which is disabled in this "
+            "fork (TAU2_DISABLE_LLM_JUDGES). Do not enable --auto-review. Set "
+            "TAU2_DISABLE_LLM_JUDGES=0 to restore upstream behaviour."
+        )
+
     is_full_duplex = _is_full_duplex(simulation)
 
     if mode == ReviewMode.FULL:

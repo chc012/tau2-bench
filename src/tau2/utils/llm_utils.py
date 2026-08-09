@@ -21,6 +21,7 @@ from tau2.config import (
     DEFAULT_LLM_CACHE_TYPE,
     DEFAULT_MAX_RETRIES,
     LLM_CACHE_ENABLED,
+    LLM_OVERRIDE,
     REDIS_CACHE_TTL,
     REDIS_CACHE_VERSION,
     REDIS_HOST,
@@ -376,6 +377,14 @@ def generate(
     Returns: A tuple containing the message and the cost.
     """
     validate_message_history(messages)
+
+    # FORK: single choke point for forcing a model. Every LLM call in tau2 goes
+    # through generate(), so this covers agent, user simulator, judges and the
+    # env interface without touching call sites.
+    if LLM_OVERRIDE and model != LLM_OVERRIDE:
+        logger.debug(f"TAU2_LLM_OVERRIDE: {model} -> {LLM_OVERRIDE}")
+        model = LLM_OVERRIDE
+
     if kwargs.get("num_retries") is None:
         kwargs["num_retries"] = DEFAULT_MAX_RETRIES
 

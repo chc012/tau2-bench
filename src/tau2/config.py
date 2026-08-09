@@ -1,3 +1,37 @@
+import os
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    """Read a boolean from the environment. Unset -> default."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"0", "false", "no", "off", ""}
+
+
+# =============================================================================
+# FORK MODIFICATIONS (meta-evaluation project)
+# =============================================================================
+# This fork studies meta-evaluation of LLM judges, so tau2's own LLM-based
+# judging is switched off by default: it is not the object of study here, and
+# leaving it on would put a third-party judge inside our reward path.
+#
+# Disabling is DELIBERATELY NOT "return no findings". An empty NL-assertion
+# check list would score reward 1.0 (`all([]) is True`), silently inflating any
+# task whose reward_basis includes NL_ASSERTION -- 112 of 114 retail tasks.
+# Instead the evaluator drops NL_ASSERTION from the reward basis and warns, so
+# the reward reflects only the programmatic components that actually ran.
+#
+# Set TAU2_DISABLE_LLM_JUDGES=0 to restore upstream behaviour.
+DISABLE_LLM_JUDGES = _env_flag("TAU2_DISABLE_LLM_JUDGES", default=True)
+
+# Force every LLM call through one model regardless of what the caller asked
+# for. Set TAU2_LLM_OVERRIDE to a litellm model string. Used to run the test
+# suite against a provider we hold keys for, without editing ~60 hardcoded
+# model names across the tests.
+LLM_OVERRIDE = os.getenv("TAU2_LLM_OVERRIDE") or None
+
+
 # =============================================================================
 # SIMULATION DEFAULTS (overridable via CLI)
 # =============================================================================
