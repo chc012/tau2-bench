@@ -249,6 +249,15 @@ class UserSimulator(
             cost=assistant_message.cost,
             usage=assistant_message.usage,
             raw_data=assistant_message.raw_data,
+            # `generate()` times every call, including this one, and `UserMessage` accepts the
+            # field -- but the role flip copied cost/usage/raw_data and dropped the timing, so
+            # every user-simulator call was untimed while its tokens were counted. Measured on
+            # 72 saved simulations: 473 of 473 user turns carried usage and 0 carried a
+            # latency, leaving 18% of simulation time unattributable and forcing the
+            # trajectory stage's service time to be reported as a floor rather than a total.
+            # The streaming simulator has the same omission here but survives it by stashing
+            # the value on `state._llm_generation_seconds`; this path has no such side channel.
+            generation_time_seconds=assistant_message.generation_time_seconds,
         )
 
         # flip the requestor of the tool calls
